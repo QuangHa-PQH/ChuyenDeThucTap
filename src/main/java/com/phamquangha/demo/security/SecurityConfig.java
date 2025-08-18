@@ -10,6 +10,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -18,6 +19,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.util.List;
 
@@ -38,6 +42,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Cho phép truy cập mà không cần token
                         .requestMatchers(
+                                "/uploads/images/**",
                                 "/api/auth/**", // Đường dẫn cho login, register
                                 "/api/products/**", // API sản phẩm (public)
                                 "/api/users/**", // API sản phẩm (public)
@@ -51,8 +56,8 @@ public class SecurityConfig {
                                 "/api/order-details/**",
                                 "/api/products/search/**",
                                 "/index", "/home",
-                                "/api/products/{id}/**" // Cho phép API chi tiết sản phẩm không cần token
-                        ).permitAll()
+                                "/api/products/{id}/**")
+                        .permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // Các API liên quan đến order thì yêu cầu phải có token
                         .requestMatchers("/api/admin/statistics/**").hasRole("ADMIN")
@@ -60,10 +65,15 @@ public class SecurityConfig {
                         // Tất cả các API còn lại yêu cầu phải có token (bao gồm các API bảo mật)
                         .anyRequest().authenticated())
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // Không sử dụng
-                                                                                                        // session
+                // session
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class); // Thêm filter cho JWT
 
         return http.build();
+    }
+
+    @Bean
+    public WebSecurityCustomizer webSecurityCustomizer() {
+        return (web) -> web.ignoring().requestMatchers("/uploads/images/**");
     }
 
     @Bean
@@ -89,4 +99,19 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
+
+    @Configuration
+    public class WebConfig implements WebMvcConfigurer {
+
+        @Override
+        public void addResourceHandlers(ResourceHandlerRegistry registry) {
+            // Đường dẫn thực tế tới thư mục uploads trong backend
+            String uploadPath = System.getProperty("user.dir") + "/uploads/images/";
+
+            registry.addResourceHandler("/uploads/images/**")
+                    .addResourceLocations("file:" + uploadPath) // file: để đọc từ ổ đĩa
+                    .setCachePeriod(0); // không cache để test
+        }
+    }
+
 }

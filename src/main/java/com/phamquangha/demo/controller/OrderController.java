@@ -13,8 +13,11 @@ import com.phamquangha.demo.service.OrderService;
 import jakarta.transaction.Transactional;
 
 import java.text.NumberFormat;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -41,7 +44,9 @@ public class OrderController {
     private OrderService orderService;
 
     @PostMapping
+    @Transactional
     public ResponseEntity<?> createOrder(@RequestBody OrderRequest request) {
+        // 1. Tạo đơn hàng
         Order order = Order.builder()
                 .customerName(request.getCustomerName())
                 .customerPhone(request.getCustomerPhone())
@@ -53,8 +58,18 @@ public class OrderController {
                 .build();
         orderRepository.save(order);
 
-        StringBuilder emailContent = new StringBuilder();
+        // 2. Lấy danh sách productId trong đơn hàng
+        List<Long> productIds = request.getItems()
+                .stream().map(OrderRequest.OrderItem::getProductId).toList();
 
+        // 3. Lấy tất cả sản phẩm trong 1 query
+        List<Product> products = productRepository.findAllById(productIds);
+        Map<Long, Product> productMap = products.stream()
+                .collect(Collectors.toMap(Product::getId, p -> p));
+
+        // 4. Chuẩn bị danh sách OrderDetail + cập nhật số lượng tồn kho
+        List<OrderDetail> orderDetails = new ArrayList<>();
+        StringBuilder emailContent = new StringBuilder();
         NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
 
         emailContent.append("<h3>Cảm ơn bạn đã đặt hàng tại cửa hàng của chúng tôi.</h3>")
@@ -62,9 +77,12 @@ public class OrderController {
                 .append("<ul>");
 
         for (OrderRequest.OrderItem item : request.getItems()) {
-            Product product = productRepository.findById(item.getProductId())
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm"));
+            Product product = productMap.get(item.getProductId());
+            if (product == null) {
+                throw new RuntimeException("Không tìm thấy sản phẩm với ID: " + item.getProductId());
+            }
 
+            // Kiểm tra tồn kho
             if (product.getQuantity() < item.getQuantity()) {
                 return ResponseEntity.badRequest()
                         .body("Sản phẩm '" + product.getName() + "' không đủ số lượng trong kho.");
@@ -72,8 +90,8 @@ public class OrderController {
 
             // Trừ kho
             product.setQuantity(product.getQuantity() - item.getQuantity());
-            productRepository.save(product);
 
+            // Tạo chi tiết đơn hàng
             OrderDetail detail = OrderDetail.builder()
                     .order(order)
                     .product(product)
@@ -81,15 +99,14 @@ public class OrderController {
                     .unitPrice(item.getUnitPrice())
                     .totalPrice(item.getUnitPrice() * item.getQuantity())
                     .build();
-            orderDetailRepository.save(detail);
+            orderDetails.add(detail);
 
-            // Thêm vào nội dung email
+            // Thêm nội dung email
             emailContent.append("<li>")
                     .append(product.getName())
                     .append(" - Số lượng: ").append(item.getQuantity())
                     .append(" - Đơn giá: ").append(currencyFormat.format(item.getUnitPrice()))
                     .append("</li>");
-
         }
 
         emailContent.append("</ul>")
@@ -102,6 +119,13 @@ public class OrderController {
             emailContent.append("<p><strong>Ghi chú:</strong> ").append(order.getNote()).append("</p>");
         }
 
+        // 5. Lưu tất cả OrderDetail trong 1 batch
+        orderDetailRepository.saveAll(orderDetails);
+
+        // 6. Lưu lại danh sách product đã trừ tồn kho
+        productRepository.saveAll(products);
+
+        // 7. Gửi email
         try {
             emailService.sendOrderConfirmation(
                     order.getCustomerEmail(),
@@ -109,7 +133,6 @@ public class OrderController {
                     emailContent.toString());
         } catch (Exception e) {
             System.out.println("Lỗi gửi email: " + e.getMessage());
-            e.printStackTrace();
         }
 
         return ResponseEntity.ok(order);
@@ -117,7 +140,7 @@ public class OrderController {
 
     @GetMapping
     public ResponseEntity<List<Order>> getAllOrders() {
-        List<Order> orders = orderService.getAllOrders(); // dùng injected service
+        List<Order> orders = orderService.getAllOrders();
         return ResponseEntity.ok(orders);
     }
 
