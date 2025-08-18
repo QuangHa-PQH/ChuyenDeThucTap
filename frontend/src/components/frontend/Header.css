@@ -1,0 +1,15 @@
+.dropdown-hover:hover .dropdown-menu-custom {
+    display: block;
+}
+
+.dropdown-menu-custom {
+    display: none;
+    top: 100%;
+    left: 0;
+    min-width: 200px;
+    z-index: 1000;
+}
+
+.dropdown-item:hover {
+    background-color: #f8f9fa;
+}
