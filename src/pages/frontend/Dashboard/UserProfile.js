@@ -31,9 +31,9 @@ const UserProfile = () => {
           </div>
 
           <div className="mt-4 text-center">
-            <button className="btn btn-outline-primary me-2" onClick={() => setShowOrders(true)}>
+            {/* <button className="btn btn-outline-primary me-2" onClick={() => setShowOrders(true)}>
               Xem đơn hàng
-            </button>
+            </button> */}
             <Link to="/logout" className="btn btn-danger">Đăng xuất</Link>
           </div>
         </div>

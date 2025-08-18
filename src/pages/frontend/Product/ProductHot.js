@@ -117,7 +117,7 @@ const ProductHot = () => {
               <div className="card h-100 border-1 shadow-sm">
                 <Link to={`/san-pham/${product.id}`}>
                   <img
-                    src={`/assets/Logo/${product.image}`}
+                    src={product.image}
                     className="card-img-top"
                     alt={product.name}
                     style={{ height: '200px', objectFit: 'cover' }}

@@ -6,8 +6,12 @@ const Order = () => {
   const [orderDetails, setOrderDetails] = useState([]);
   const [trash] = useState([]);
   const [viewTrash] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState(null);  // Thêm state để lưu đơn hàng đã chọn
-  const [showDetailModal, setShowDetailModal] = useState(false);  // Thêm state để hiển thị modal
+  const [selectedOrder, setSelectedOrder] = useState(null); 
+  const [showDetailModal, setShowDetailModal] = useState(false);  
+
+  // Thêm state phân trang
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     fetchOrders();
@@ -17,11 +21,8 @@ const Order = () => {
     try {
       const token = localStorage.getItem("token");
       const response = await axios.get("http://localhost:8081/api/orders", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
-      console.table(response.data);  // Xem thông tin trả về từ API
       setOrders(response.data);
     } catch (error) {
       console.error('Lỗi khi lấy đơn hàng:', error);
@@ -29,18 +30,12 @@ const Order = () => {
   };
 
   const handleDeleteOrder = async (orderId) => {
-    const confirmed = window.confirm("Bạn có chắc chắn muốn xóa đơn hàng này?");
-    if (!confirmed) return;
-  
+    if (!window.confirm("Bạn có chắc chắn muốn xóa đơn hàng này?")) return;
     try {
       const token = localStorage.getItem("token");
       await axios.delete(`http://localhost:8081/api/orders/${orderId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
-  
-      // Cập nhật lại danh sách sau khi xóa
       setOrders(orders.filter((o) => o.id !== orderId));
       alert("Hủy đơn hàng thành công!");
     } catch (error) {
@@ -48,59 +43,47 @@ const Order = () => {
       alert("Xảy ra lỗi khi xóa đơn hàng.");
     }
   };
-  
 
   const toggleStatus = async (id, currentStatus) => {
     const newStatus = currentStatus === "Đã giao" ? "Đang xử lý" : "Đã giao";
-    console.log(`Đang gửi yêu cầu đổi trạng thái: ${currentStatus} -> ${newStatus}`);
-    
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.put(
+      await axios.put(
         `http://localhost:8081/api/orders/${id}/status?status=${encodeURIComponent(newStatus)}`,
         null,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-
-      console.log("Phản hồi từ server:", response.data);
-
-      // Cập nhật lại state
-      setOrders(
-        orders.map((o) =>
-          o.id === id ? { ...o, status: newStatus } : o
-        )
-      );
+      setOrders(orders.map((o) => (o.id === id ? { ...o, status: newStatus } : o)));
     } catch (error) {
       console.error("Lỗi khi cập nhật trạng thái đơn hàng:", error);
     }
   };
-  
+
   const handleViewDetails = async (order) => {
     setSelectedOrder(order);
     setShowDetailModal(true);
-
     try {
       const token = localStorage.getItem("token");
       const response = await axios.get(`http://localhost:8081/api/order-details/order/${order.id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
-      console.log("Chi tiết đơn hàng:", response.data);
       setOrderDetails(response.data);
     } catch (error) {
       console.error("Lỗi khi lấy chi tiết đơn hàng:", error);
-      setOrderDetails([]); // fallback để không bị undefined
+      setOrderDetails([]);
     }
   };
 
   const closeDetailModal = () => {
-    setShowDetailModal(false);  // Đóng modal
+    setShowDetailModal(false);
   };
+
+  // Tính dữ liệu phân trang
+  const displayedOrders = (viewTrash ? trash : orders).slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+  const totalPages = Math.ceil((viewTrash ? trash : orders).length / itemsPerPage);
 
   return (
     <div className="container my-4">
@@ -123,7 +106,7 @@ const Order = () => {
           </tr>
         </thead>
         <tbody>
-          {(viewTrash ? trash : orders).map((o) => (
+          {displayedOrders.map((o) => (
             <tr key={o.id}>
               <td>{o.id}</td>
               <td>{o.customerName}</td>
@@ -131,9 +114,9 @@ const Order = () => {
               <td>{o.customerEmail}</td>
               <td>{o.deliveryAddress}</td>
               <td>{o.note}</td>
-              <th>
+              <td>
                 <button className="btn btn-sm btn-info me-2" onClick={() => handleViewDetails(o)}>Chi tiết</button>
-              </th>
+              </td>
               <td>{new Date(o.orderDate).toLocaleDateString('vi-VN')}</td>
               <td className="d-flex gap-1">
                 {!viewTrash && (
@@ -155,13 +138,32 @@ const Order = () => {
               </td>              
             </tr>
           ))}
-          {(viewTrash ? trash : orders).length === 0 && (
+          {displayedOrders.length === 0 && (
             <tr>
-              <td colSpan="8" className="text-center">Không có đơn hàng</td>
+              <td colSpan="9" className="text-center">Không có đơn hàng</td>
             </tr>
           )}
         </tbody>
       </table>
+
+      {/* Phân trang */}
+      <div className="d-flex justify-content-center">
+        <nav>
+          <ul className="pagination">
+            <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+              <button className="page-link" onClick={() => setCurrentPage((p) => p - 1)}>Trước</button>
+            </li>
+            {Array.from({ length: totalPages }, (_, i) => (
+              <li key={i} className={`page-item ${currentPage === i + 1 ? 'active' : ''}`}>
+                <button className="page-link" onClick={() => setCurrentPage(i + 1)}>{i + 1}</button>
+              </li>
+            ))}
+            <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
+              <button className="page-link" onClick={() => setCurrentPage((p) => p + 1)}>Sau</button>
+            </li>
+          </ul>
+        </nav>
+      </div>
 
       {/* Modal chi tiết đơn hàng */}
       {showDetailModal && selectedOrder && (
@@ -173,34 +175,33 @@ const Order = () => {
                 <button type="button" className="btn-close" onClick={closeDetailModal}></button>
               </div>
               <div className="modal-body">
-              <h5>Chi tiết sản phẩm:</h5>
-              {Array.isArray(orderDetails) && orderDetails.length > 0 ? (
-                <table className="table table-striped">
-                  <thead>
-                    <tr>
-                      <th>Mã CTDH</th>
-                      <th>Mã sản phẩm</th>
-                      <th>Số lượng</th>
-                      <th>Giá sản phẩm</th>
-                      <th>Tổng tiền</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {orderDetails.map((item, index) => (
-                      <tr key={index}>
-                        <td>{item.id || "Không có CTDH"}</td>
-                        <td>{item.productId || "Không có mã sản phẩm"}</td>
-                        <td>{item.quantity}</td>
-                        <td>{(item.unitPrice || 0).toLocaleString()}đ</td>
-                        <td>{(item.totalPrice || 0).toLocaleString()}đ</td>
+                <h5>Chi tiết sản phẩm:</h5>
+                {Array.isArray(orderDetails) && orderDetails.length > 0 ? (
+                  <table className="table table-striped">
+                    <thead>
+                      <tr>
+                        <th>Mã CTDH</th>
+                        <th>Mã sản phẩm</th>
+                        <th>Số lượng</th>
+                        <th>Giá sản phẩm</th>
+                        <th>Tổng tiền</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p>Không có chi tiết sản phẩm</p>
-              )}
-
+                    </thead>
+                    <tbody>
+                      {orderDetails.map((item, index) => (
+                        <tr key={index}>
+                          <td>{item.id || "Không có CTDH"}</td>
+                          <td>{item.productId || "Không có mã sản phẩm"}</td>
+                          <td>{item.quantity}</td>
+                          <td>{(item.unitPrice || 0).toLocaleString()}đ</td>
+                          <td>{(item.totalPrice || 0).toLocaleString()}đ</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p>Không có chi tiết sản phẩm</p>
+                )}
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={closeDetailModal}>Đóng</button>
@@ -209,7 +210,7 @@ const Order = () => {
           </div>
         </div>
       )}
-      
+
     </div>
   );
 };

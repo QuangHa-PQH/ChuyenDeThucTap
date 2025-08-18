@@ -7,9 +7,11 @@ const Brand = () => {
   const [trash] = useState([]);
   const [viewTrash, setViewTrash] = useState(false);
   const [editingBrand, setEditingBrand] = useState(null);
-  const [form, setForm] = useState({ name: '', image: '', description: '', slug: '' });
+  const [form, setForm] = useState({ name: '', description: '', slug: '' });
+  const [imageFile, setImageFile] = useState(null); // lưu file ảnh chọn
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
-  // Lấy danh sách thương hiệu từ API
   useEffect(() => {
     fetchBrands();
   }, []);
@@ -18,15 +20,13 @@ const Brand = () => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get('http://localhost:8081/api/brands', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (Array.isArray(response.data)) {
         setBrands(response.data);
       } else {
-        console.error('Dữ liệu trả về không phải là mảng, dữ liệu trả về là:', response.data);
+        console.error('Dữ liệu trả về không phải là mảng:', response.data);
       }
     } catch (error) {
       console.error('Lỗi khi lấy danh sách thương hiệu:', error);
@@ -44,41 +44,68 @@ const Brand = () => {
     });
   };
 
+  // ====== Thêm thương hiệu ======
   const handleAdd = async () => {
-    const newItem = { ...form };
     const token = localStorage.getItem('token');
-
     try {
-      await axios.post('http://localhost:8081/api/brands', newItem, {
-        headers: { Authorization: `Bearer ${token}` },
+      const formData = new FormData();
+      formData.append("name", form.name);
+      formData.append("description", form.description);
+      formData.append("slug", form.slug);
+
+      if (imageFile) {
+        formData.append("image", imageFile); // key phải trùng backend
+      }
+
+      await axios.post('http://localhost:8081/api/brands', formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data"
+        },
       });
+
       alert('Thêm thương hiệu thành công!');
-      fetchBrands(); // Reload lại dữ liệu sau khi thêm
+      fetchBrands();
       setEditingBrand(null);
-      setForm({ name: '', image: '', description: '', slug: '' });
+      setForm({ name: '', description: '', slug: '' });
+      setImageFile(null);
     } catch (error) {
       console.error('Lỗi thêm thương hiệu:', error);
     }
   };
 
+  // ====== Sửa thương hiệu ======
   const handleEdit = (brand) => {
     setEditingBrand(brand);
-    setForm({ name: brand.name, image: brand.image, description: brand.description, slug: brand.slug });
-    window.scrollTo(0, 0); // Scroll lên đầu trang khi bấm sửa
+    setForm({ name: brand.name, description: brand.description, slug: brand.slug });
+    setImageFile(null); // reset khi sửa
+    window.scrollTo(0, 0);
   };
 
   const handleUpdate = async () => {
-    const updated = { ...form };
     const token = localStorage.getItem('token');
-
     try {
-      await axios.put(`http://localhost:8081/api/brands/${editingBrand.id}`, updated, {
-        headers: { Authorization: `Bearer ${token}` },
+      const formData = new FormData();
+      formData.append("name", form.name);
+      formData.append("description", form.description);
+      formData.append("slug", form.slug);
+
+      if (imageFile) {
+        formData.append("image", imageFile);
+      }
+
+      await axios.put(`http://localhost:8081/api/brands/${editingBrand.id}`, formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data"
+        },
       });
+
       alert('Sửa thương hiệu thành công!');
-      fetchBrands(); // Reload lại dữ liệu sau khi cập nhật
+      fetchBrands();
       setEditingBrand(null);
-      setForm({ name: '', image: '', description: '', slug: '' });
+      setForm({ name: '', description: '', slug: '' });
+      setImageFile(null);
     } catch (error) {
       console.error('Lỗi cập nhật thương hiệu:', error);
     }
@@ -91,7 +118,7 @@ const Brand = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       alert('Xóa thương hiệu thành công!');
-      fetchBrands(); // Reload lại dữ liệu sau khi xóa
+      fetchBrands();
     } catch (error) {
       console.error('Lỗi xóa thương hiệu:', error);
     }
@@ -99,8 +126,17 @@ const Brand = () => {
 
   const handleCancelEdit = () => {
     setEditingBrand(null);
-    setForm({ name: '', image: '', description: '', slug: '' });
+    setForm({ name: '', description: '', slug: '' });
+    setImageFile(null);
   };
+
+  const getPaginatedData = () => {
+    const data = viewTrash ? trash : brands;
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return data.slice(startIndex, startIndex + itemsPerPage);
+  };
+
+  const totalPages = Math.ceil((viewTrash ? trash.length : brands.length) / itemsPerPage);
 
   return (
     <div className="container my-4">
@@ -108,11 +144,9 @@ const Brand = () => {
         <h4>{viewTrash ? 'Thùng rác thương hiệu' : 'Danh sách thương hiệu'}</h4>
         <div>
           {!viewTrash && !editingBrand && (
-            <>
-              <button className="btn btn-primary me-2" onClick={() => setEditingBrand({})}>
-                Thêm thương hiệu
-              </button>
-            </>
+            <button className="btn btn-primary me-2" onClick={() => setEditingBrand({})}>
+              Thêm thương hiệu
+            </button>
           )}
           {viewTrash && (
             <button className="btn btn-secondary" onClick={() => setViewTrash(false)}>
@@ -135,10 +169,8 @@ const Brand = () => {
             />
             <input
               className="form-control mb-2"
-              placeholder="Link hình ảnh"
-              name="image"
-              value={form.image}
-              onChange={handleInputChange}
+              type="file"
+              onChange={(e) => setImageFile(e.target.files[0])}
             />
             <input
               className="form-control mb-3"
@@ -174,25 +206,50 @@ const Brand = () => {
           </tr>
         </thead>
         <tbody>
-          {(viewTrash ? trash : brands).map((b) => (
+          {getPaginatedData().map((b) => (
             <tr key={b.id}>
               <td>{b.id}</td>
               <td>{b.name}</td>
-              <td><img src={`/assets/Logo/${b.image}`} alt={b.name} style={{ width: '50px' }} /></td>
+              <td>
+                <img src={b.image} alt={b.name} style={{ width: '50px' }} />
+              </td>
               <td>{b.slug}</td>
               <td>
-                  <button className="btn btn-sm btn-info me-2" onClick={() => handleEdit(b)}>Sửa</button>
-                  <button className="btn btn-sm btn-danger" onClick={() => handleDelete(b.id)}>Xóa</button>
+                <button className="btn btn-sm btn-info me-2" onClick={() => handleEdit(b)}>Sửa</button>
+                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(b.id)}>Xóa</button>
               </td>
             </tr>
           ))}
-          {(viewTrash ? trash : brands).length === 0 && (
+          {getPaginatedData().length === 0 && (
             <tr>
               <td colSpan="6" className="text-center">Không có thương hiệu</td>
             </tr>
           )}
         </tbody>
       </table>
+
+      {/* 🔥 Thanh phân trang */}
+      {totalPages > 1 && (
+        <nav>
+          <ul className="pagination justify-content-center">
+            <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+              <button className="page-link" onClick={() => setCurrentPage(currentPage - 1)}>Trước</button>
+            </li>
+
+            {Array.from({ length: totalPages }, (_, index) => (
+              <li key={index + 1} className={`page-item ${currentPage === index + 1 ? 'active' : ''}`}>
+                <button className="page-link" onClick={() => setCurrentPage(index + 1)}>
+                  {index + 1}
+                </button>
+              </li>
+            ))}
+
+            <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
+              <button className="page-link" onClick={() => setCurrentPage(currentPage + 1)}>Sau</button>
+            </li>
+          </ul>
+        </nav>
+      )}      
     </div>
   );
 };

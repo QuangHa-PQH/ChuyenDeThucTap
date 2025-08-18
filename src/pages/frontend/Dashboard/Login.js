@@ -34,10 +34,15 @@ const Login = () => {
           token: token,
         };
         localStorage.setItem("user", JSON.stringify(user));
+
+        // Điều hướng dựa vào role
+        if (role.includes("ROLE_ADMIN")) {
+          navigate("/admin");
+        } else {
+          navigate("/");
+        }
         
-        navigate("/");
-        window.location.reload(); 
-        
+        window.location.reload();
       } else {
         alert("Đăng nhập thất bại, vui lòng thử lại.");
       }
@@ -46,6 +51,7 @@ const Login = () => {
       alert("Sai tài khoản hoặc mật khẩu!");
     }
   };
+
 
   return (
     <div className="container py-5">

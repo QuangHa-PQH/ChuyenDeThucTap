@@ -28,6 +28,13 @@ const Checkout = () => {
     }
   }, [isProcessing]);
 
+  const getImageUrl = (image) => {
+    return image?.startsWith("http")
+      ? image
+      : `http://localhost:8081/uploads/images/${image}`;
+  };
+
+
   useEffect(() => {
     localStorage.removeItem("vnpayProcessed");
     const urlParams = new URLSearchParams(window.location.search);
@@ -217,7 +224,7 @@ const Checkout = () => {
                       checked={paymentMethod === "CARD"}
                       onChange={() => setPaymentMethod("CARD")}
                     />
-                    <label className="form-check-label">Thanh toán bằng thẻ</label>
+                    <label className="form-check-label">Thanh toán bằng VNPAY</label>
                   </div>
                 </div>
               </div>
@@ -244,7 +251,7 @@ const Checkout = () => {
                 <li key={item.id} className="list-group-item d-flex justify-content-between align-items-center">
                   <div className="d-flex align-items-center gap-2">
                     <img
-                      src={`/assets/Logo/${item.image}`}
+                      src={getImageUrl(item.image)}
                       alt={item.name}
                       style={{ width: "40px", height: "40px", objectFit: "cover" }}
                       onError={(e) => (e.target.src = "/assets/Logo/default.png")}

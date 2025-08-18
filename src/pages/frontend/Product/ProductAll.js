@@ -1,16 +1,10 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
-import banner1 from "../../../assets/Logo/banner1.webp";
-import Modal from "react-bootstrap/Modal";
-import Button from "react-bootstrap/Button";
 
 const ProductAll = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [quantity, setQuantity] = useState(1);  
   const navigate = useNavigate();
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
@@ -18,9 +12,16 @@ const ProductAll = () => {
 
   // Phần xử lý mua hàng
   const handleBuyNowClick = (product) => {
-    setSelectedProduct(product);
-    setQuantity(1);
-    setShowModal(true);
+    const tempCart = [{
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      image: product.image,
+      quantity: 1
+    }];
+    localStorage.setItem("tempCart", JSON.stringify(tempCart));
+    // Chuyển thẳng đến trang thanh toán
+    navigate("/thanh-toan?buynow=true");
   };
 
   // Phần xử lý thêm giỏ hàng
@@ -104,7 +105,7 @@ const ProductAll = () => {
                   <div className="card h-100 border-1 shadow-sm">
                     <Link to={`/san-pham/${product.id}`}>
                       <img
-                        src={`/assets/Logo/${product.image}`}
+                        src={product.image}
                         alt={product.name}
                         className="card-img-top"
                         style={{ height: "100%", objectFit: "cover" }}
@@ -166,112 +167,7 @@ const ProductAll = () => {
             </nav>
           )}
         </div>
-      </div>
-      <Modal show={showModal} onHide={() => setShowModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Chọn số lượng</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-        {selectedProduct && (
-          <div className="text-center">
-            <img
-              src={`/assets/Logo/${selectedProduct.image}`}
-              alt={selectedProduct.name}
-              className="mb-3"
-              style={{ width: "120px", objectFit: "cover" }}
-            />
-
-            <h5>{selectedProduct.name}</h5>
-            <p className="text-danger fw-bold">
-              {selectedProduct.price.toLocaleString()}đ
-            </p>
-            
-            <p className="text-muted mb-0">
-              Còn lại: <strong>{selectedProduct.quantity}</strong> sản phẩm
-            </p>
-            {quantity > selectedProduct.quantity && (
-              <p className="text-danger mb-2">Vượt quá số lượng còn lại!</p>
-            )}
-
-            <div className="d-flex justify-content-center align-items-center gap-2 mb-2">
-              <button
-                className="btn btn-outline-secondary"
-                onClick={() =>
-                  setQuantity((prev) => Math.max(1, prev - 1))
-                }
-              >
-                -
-              </button>
-
-              <input
-                type="number"
-                className="form-control text-center"
-                value={quantity}
-                onChange={(e) => {
-                  const inputValue = parseInt(e.target.value);
-                  if (isNaN(inputValue)) {
-                    setQuantity("");
-                  } else if (inputValue < 1) {
-                    setQuantity(1);
-                  } else {
-                    setQuantity(inputValue);
-                  }
-                }}
-                onBlur={() => {
-                  if (quantity === "" || quantity < 1) {
-                    setQuantity(1);
-                  }
-                }}
-                style={{ width: "100px" }}
-              />
-
-              <button
-                className="btn btn-outline-secondary"
-                onClick={() =>
-                  setQuantity((prev) =>
-                    Math.min(selectedProduct.quantity, prev + 1)
-                  )
-                }
-              >
-                +
-              </button>
-            </div>
-          </div>
-        )}
-          
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>
-            Hủy
-          </Button>
-          <Button
-            variant="success"
-            onClick={() => {
-              if (quantity > selectedProduct.quantity) {
-                alert(`Vượt quá số lượng còn lại!`);
-                return;
-              }
-
-              const tempCart = [
-                {
-                  id: selectedProduct.id,
-                  name: selectedProduct.name,
-                  price: selectedProduct.price,
-                  image: selectedProduct.image,
-                  quantity: quantity,
-                },
-              ];
-              localStorage.setItem("tempCart", JSON.stringify(tempCart));
-              setShowModal(false);
-              navigate("/thanh-toan?buynow=true");
-            }}
-          >
-            Thanh toán
-          </Button>
-          
-        </Modal.Footer>
-      </Modal>
-      
+      </div>      
     </section>
 
   );

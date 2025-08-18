@@ -22,6 +22,12 @@ const Cart = () => {
     setUserChecked(true);
   }, []);
   
+  const getImageUrl = (image) => {
+    return image?.startsWith("http")
+      ? image
+      : `http://localhost:8081/uploads/images/${image}`;
+  };
+
 
   // Phần xử lý dữ liệu
   useEffect(() => {
@@ -137,7 +143,7 @@ const Cart = () => {
                     <td style={{ width: "80px" }}>
                       <Link to={`/san-pham/${item.id}`}>
                         <img
-                          src={`/assets/Logo/${item.image}`}
+                          src={getImageUrl(item.image)}
                           alt={item.name}
                           style={{ width: "60px" }}
                           onError={(e) => {

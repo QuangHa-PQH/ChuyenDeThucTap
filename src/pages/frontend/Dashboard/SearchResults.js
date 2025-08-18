@@ -32,6 +32,12 @@ function SearchResults() {
     alert("Đã thêm vào giỏ hàng!");
   };
 
+  const getImageUrl = (image) => {
+  return image?.startsWith("http")
+    ? image
+    : `http://localhost:8081/uploads/images/${image}`;
+  };
+
   // Phần xử lý thêm yêu thích
   const handleAddToFavorites = (product) => {
     const existingFavorites = JSON.parse(localStorage.getItem("favorites")) || [];
@@ -69,7 +75,7 @@ function SearchResults() {
             <div className="card border-1 shadow-sm" >
               <Link to={`/san-pham/${product.id}`}>
                 <img
-                  src={`/assets/Logo/${product.image}`}
+                  src={getImageUrl(product.image)}
                   className="card-img-top"
                   alt={product.name}
                   style={{ height: '100%', objectFit: 'cover' }}
@@ -96,14 +102,7 @@ function SearchResults() {
                     <div className="d-flex gap-2">
                       <button
                         className="btn btn-sm btn-outline-secondary"
-                        onClick={() => {
-                          const token = localStorage.getItem("token");
-                          if (!token) {
-                            alert("Bạn cần đăng nhập để thêm vào giỏ hàng.");
-                            return;
-                          }
-                          handleAddToCart(product);
-                        }}
+                        onClick={() => handleAddToCart(product)}
                         title="Thêm vào giỏ"
                       >
                         <i className="fas fa-shopping-cart"></i>
@@ -111,14 +110,7 @@ function SearchResults() {
 
                       <button
                         className="btn btn-sm btn-outline-secondary"
-                        onClick={() => {
-                          const token = localStorage.getItem("token");
-                          if (!token) {
-                            alert("Bạn cần đăng nhập để thêm vào danh sách yêu thích.");
-                            return;
-                          }
-                          handleAddToFavorites(product);
-                        }}
+                        onClick={() => handleAddToFavorites(product)}
                         title="Yêu thích"
                       >
                         <i className="fas fa-heart"></i>

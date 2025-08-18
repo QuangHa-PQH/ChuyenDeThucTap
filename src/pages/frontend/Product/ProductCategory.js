@@ -1,16 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import Modal from "react-bootstrap/Modal";
-import Button from "react-bootstrap/Button";
 
-const CategoryProducts = () => {
+const ProductCategory = () => {
   const { slug } = useParams();
   const [products, setProducts] = useState([]);
   const [name, setName] = useState('');
-  const [showModal, setShowModal] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [quantity, setQuantity] = useState(1);
   const navigate = useNavigate();
 
   // Phần xử lý lấy dữ liệu
@@ -32,11 +27,24 @@ const CategoryProducts = () => {
     fetchProductsByCategorySlug();
   }, [slug]);
 
+  const getImageUrl = (image) => {
+    return image?.startsWith("http")
+      ? image
+      : `http://localhost:8081/uploads/images/${image}`;
+  };
+
   // Phần xử lý mua hàng
   const handleBuyNowClick = (product) => {
-    setSelectedProduct(product);
-    setQuantity(1);
-    setShowModal(true);
+    const tempCart = [{
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      image: product.image,
+      quantity: 1
+    }];
+    localStorage.setItem("tempCart", JSON.stringify(tempCart));
+    // Chuyển thẳng đến trang thanh toán
+    navigate("/thanh-toan?buynow=true");
   };
 
   // Phần xử lý thêm giỏ hàng
@@ -76,7 +84,7 @@ const CategoryProducts = () => {
               <div className="card border-1 shadow-sm h-100">
                 <a href={`/san-pham/${product.id}`}>
                   <img
-                    src={`/assets/Logo/${product.image}`}
+                    src={getImageUrl(product.image)}
                     className="card-img-top"
                     alt={product.name}
                     style={{ height: "100%", objectFit: "cover" }}
@@ -152,109 +160,9 @@ const CategoryProducts = () => {
           )}
         </div>
         
-      </div>
-
-      <Modal show={showModal} onHide={() => setShowModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Chọn số lượng</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-        {selectedProduct && (
-          <div className="text-center">
-            <img
-              src={`/assets/Logo/${selectedProduct.image}`}
-              alt={selectedProduct.name}
-              className="mb-3"
-              style={{ width: "120px", objectFit: "cover" }}
-            />
-
-            <h5>{selectedProduct.name}</h5>
-            <p className="text-danger fw-bold">
-              {selectedProduct.price.toLocaleString()}đ
-            </p>
-            
-            <p className="text-muted mb-0">
-              Còn lại: <strong>{selectedProduct.quantity}</strong> sản phẩm
-            </p>
-            {quantity > selectedProduct.quantity && (
-              <p className="text-danger mb-2">Vượt quá số lượng còn lại!</p>
-            )}
-
-            <div className="d-flex justify-content-center align-items-center gap-2 mb-2">
-              <button
-                className="btn btn-outline-secondary"
-                onClick={() =>
-                  setQuantity((prev) => Math.max(1, prev - 1))
-                }
-              >
-                -
-              </button>
-
-              <input
-                type="number"
-                className="form-control text-center"
-                value={quantity}
-                onChange={(e) => {
-                  const inputValue = parseInt(e.target.value);
-                  if (isNaN(inputValue)) {
-                    setQuantity("");
-                  } else if (inputValue < 1) {
-                    setQuantity(1);
-                  } else {
-                    setQuantity(inputValue);
-                  }
-                }}
-                onBlur={() => {
-                  if (quantity === "" || quantity < 1) {
-                    setQuantity(1);
-                  }
-                }}
-                style={{ width: "100px" }}
-              />
-
-              <button
-                className="btn btn-outline-secondary"
-                onClick={() =>
-                  setQuantity((prev) =>
-                    Math.min(selectedProduct.quantity, prev + 1)
-                  )
-                }
-              >
-                +
-              </button>
-            </div>
-          </div>
-        )}
-          
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>
-            Hủy
-          </Button>
-          <Button
-            variant="success"
-            onClick={() => {
-              const tempCart = [
-                {
-                  id: selectedProduct.id,
-                  name: selectedProduct.name,
-                  price: selectedProduct.price,
-                  image: selectedProduct.image,
-                  quantity: quantity,
-                },
-              ];
-              localStorage.setItem("tempCart", JSON.stringify(tempCart));
-              setShowModal(false);
-              navigate("/thanh-toan?buynow=true");
-            }}
-          >
-            Thanh toán
-          </Button>
-        </Modal.Footer>
-      </Modal>
-      
+      </div>      
     </section>
   );
 };
 
-export default CategoryProducts;
+export default ProductCategory;

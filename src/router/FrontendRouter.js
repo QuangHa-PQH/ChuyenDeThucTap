@@ -8,7 +8,7 @@ import ProductDetail from "../pages/frontend/Product/ProductDetail"
 import Cart from "../pages/frontend/Cart/Cart"
 import Favorites from "../pages/frontend/Favorites/Favorites";
 import Checkout from "../pages/frontend/Cart/Checkout";
-import CategoryProduct from "../pages/frontend/Category/CategoryProducts"
+import ProductCategory from "../pages/frontend/Product/ProductCategory"
 import SearchResults from "../pages/frontend/Dashboard/SearchResults"
 import PostList from "../pages/frontend/Post/PostList";
 import PostDetail from "../pages/frontend/Post/PostDetail";
@@ -39,7 +39,7 @@ const AdminRouter = [
       { path: "search", element: <SearchResults /> },
       { path: "tin-tuc", element: <PostList /> },
       { path: "tin-tuc/:id", element: <PostDetail /> },
-      { path: ":slug", element: <CategoryProduct /> },      
+      { path: ":slug", element: <ProductCategory /> },      
       // ...
     ]
   }
