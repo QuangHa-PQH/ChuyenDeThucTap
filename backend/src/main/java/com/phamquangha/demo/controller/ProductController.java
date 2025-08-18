@@ -1,7 +1,12 @@
 package com.phamquangha.demo.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
 import java.time.LocalDateTime;
 
 import com.phamquangha.demo.entity.Category;
@@ -37,6 +42,7 @@ public class ProductController {
     public List<ProductDTO> getAllProducts() {
         List<Product> products = productService.getAllProducts();
         List<ProductDTO> productDTOs = new ArrayList<>();
+        String baseUrl = "http://localhost:8081/uploads/images/";
 
         for (Product product : products) {
             ProductDTO productDTO = new ProductDTO();
@@ -46,9 +52,9 @@ public class ProductController {
             productDTO.setDescription(product.getDescription());
             productDTO.setPrice(product.getPrice());
             productDTO.setQuantity(product.getQuantity());
-            productDTO.setImage(product.getImage());
-            productDTO.setCategoryId(product.getCategory().getId()); // Lấy chỉ ID của category
-            productDTO.setBrandId(product.getBrand().getId()); // Lấy chỉ ID của brand
+            productDTO.setImage(product.getImage() != null ? baseUrl + product.getImage() : null);
+            productDTO.setCategoryId(product.getCategory().getId());
+            productDTO.setBrandId(product.getBrand().getId());
 
             productDTOs.add(productDTO);
         }
@@ -127,54 +133,129 @@ public class ProductController {
         return productService.saveProduct(product);
     }
 
-    @PutMapping("/{id}")
-    public ProductDTO updateProduct(@PathVariable Long id, @RequestBody ProductDTO productDTO) {
-        // Tìm sản phẩm theo ID
+    @PutMapping(value = "/{id}", consumes = "multipart/form-data")
+    public ProductDTO updateProduct(
+            @PathVariable Long id,
+            @RequestParam("name") String name,
+            @RequestParam("slug") String slug,
+            @RequestParam("description") String description,
+            @RequestParam("price") Double price,
+            @RequestParam("quantity") Integer quantity,
+            @RequestParam("categoryId") Long categoryId,
+            @RequestParam("brandId") Long brandId,
+            @RequestParam(value = "image", required = false) MultipartFile imageFile) {
         Product existingProduct = productService.getProductById(id);
-
         if (existingProduct == null) {
             throw new RuntimeException("Product not found");
         }
 
-        // Tìm Category và Brand từ ID
-        Category category = categoryRepository.findById(productDTO.getCategoryId())
+        Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new RuntimeException("Category not found"));
-
-        Brand brand = brandRepository.findById(productDTO.getBrandId())
+        Brand brand = brandRepository.findById(brandId)
                 .orElseThrow(() -> new RuntimeException("Brand not found"));
 
-        // Cập nhật thông tin sản phẩm
-        existingProduct.setName(productDTO.getName());
-        existingProduct.setSlug(productDTO.getSlug());
-        existingProduct.setDescription(productDTO.getDescription());
-        existingProduct.setPrice(productDTO.getPrice());
-        existingProduct.setQuantity(productDTO.getQuantity());
-        existingProduct.setImage(productDTO.getImage());
+        String fileName = existingProduct.getImage(); // giữ nguyên ảnh cũ
+        if (imageFile != null && !imageFile.isEmpty()) {
+            try {
+                fileName = System.currentTimeMillis() + "_" + imageFile.getOriginalFilename();
+                String uploadDir = "uploads/images/";
+                java.nio.file.Path uploadPath = java.nio.file.Paths.get(uploadDir);
+
+                if (!java.nio.file.Files.exists(uploadPath)) {
+                    java.nio.file.Files.createDirectories(uploadPath);
+                }
+                java.nio.file.Files.copy(imageFile.getInputStream(),
+                        uploadPath.resolve(fileName),
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            } catch (Exception e) {
+                throw new RuntimeException("Lỗi khi lưu ảnh: " + e.getMessage());
+            }
+        }
+
+        existingProduct.setName(name);
+        existingProduct.setSlug(slug);
+        existingProduct.setDescription(description);
+        existingProduct.setPrice(price);
+        existingProduct.setQuantity(quantity);
+        existingProduct.setImage(fileName);
         existingProduct.setCategory(category);
         existingProduct.setBrand(brand);
 
-        // Lưu lại sản phẩm đã cập nhật
         Product updatedProduct = productService.saveProduct(existingProduct);
 
-        // Chuyển đổi đối tượng sản phẩm đã cập nhật thành ProductDTO để trả về cho
-        // client
-        ProductDTO updatedProductDTO = new ProductDTO();
-        updatedProductDTO.setId(updatedProduct.getId());
-        updatedProductDTO.setName(updatedProduct.getName());
-        updatedProductDTO.setSlug(updatedProduct.getSlug());
-        updatedProductDTO.setDescription(updatedProduct.getDescription());
-        updatedProductDTO.setPrice(updatedProduct.getPrice());
-        updatedProductDTO.setQuantity(updatedProduct.getQuantity());
-        updatedProductDTO.setImage(updatedProduct.getImage());
-        updatedProductDTO.setCategoryId(updatedProduct.getCategory().getId());
-        updatedProductDTO.setBrandId(updatedProduct.getBrand().getId());
+        ProductDTO dto = new ProductDTO();
+        dto.setId(updatedProduct.getId());
+        dto.setName(updatedProduct.getName());
+        dto.setSlug(updatedProduct.getSlug());
+        dto.setDescription(updatedProduct.getDescription());
+        dto.setPrice(updatedProduct.getPrice());
+        dto.setQuantity(updatedProduct.getQuantity());
+        dto.setImage(updatedProduct.getImage());
+        dto.setCategoryId(updatedProduct.getCategory().getId());
+        dto.setBrandId(updatedProduct.getBrand().getId());
 
-        return updatedProductDTO;
+        return dto;
     }
 
     @DeleteMapping("/{id}")
     public void deleteProduct(@PathVariable Long id) {
         productService.deleteProduct(id);
+    }
+
+    @PostMapping(consumes = "multipart/form-data")
+    public Product createProduct(
+            @RequestParam("name") String name,
+            @RequestParam("slug") String slug,
+            @RequestParam("description") String description,
+            @RequestParam("price") Double price,
+            @RequestParam("quantity") Integer quantity,
+            @RequestParam("categoryId") Long categoryId,
+            @RequestParam("brandId") Long brandId,
+            @RequestParam(value = "image", required = false) MultipartFile imageFile) {
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new RuntimeException("Category not found"));
+        Brand brand = brandRepository.findById(brandId)
+                .orElseThrow(() -> new RuntimeException("Brand not found"));
+
+        String fileName = null;
+        if (imageFile != null && !imageFile.isEmpty()) {
+            try {
+                fileName = System.currentTimeMillis() + "_" + imageFile.getOriginalFilename();
+                String uploadDir = "uploads/images/";
+                java.nio.file.Path uploadPath = java.nio.file.Paths.get(uploadDir);
+
+                if (!java.nio.file.Files.exists(uploadPath)) {
+                    java.nio.file.Files.createDirectories(uploadPath);
+                }
+                java.nio.file.Files.copy(imageFile.getInputStream(),
+                        uploadPath.resolve(fileName),
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            } catch (Exception e) {
+                throw new RuntimeException("Lỗi khi lưu ảnh: " + e.getMessage());
+            }
+        }
+
+        Product product = new Product();
+        product.setName(name);
+        product.setSlug(slug);
+        product.setDescription(description);
+        product.setPrice(price);
+        product.setQuantity(quantity);
+        product.setImage(fileName);
+        product.setCategory(category);
+        product.setBrand(brand);
+        product.setCreatedAt(LocalDateTime.now());
+
+        return productService.saveProduct(product);
+    }
+
+    @Configuration
+    public class WebConfig implements WebMvcConfigurer {
+        @Override
+        public void addResourceHandlers(ResourceHandlerRegistry registry) {
+            registry.addResourceHandler("/uploads/images/**")
+                    .addResourceLocations("file:uploads/images/");
+        }
     }
 
     @GetMapping("/category/{categoryId}")

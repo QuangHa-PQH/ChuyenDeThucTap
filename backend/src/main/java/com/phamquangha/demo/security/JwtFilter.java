@@ -44,6 +44,7 @@ public class JwtFilter extends OncePerRequestFilter {
                 path.startsWith("/api/contacts") ||
                 path.startsWith("/api/order-details") ||
                 path.startsWith("/api/statistics") ||
+                path.startsWith("/uploads") ||
 
                 request.getMethod().equalsIgnoreCase("OPTIONS") // Cho phép preflight request
         ) {
